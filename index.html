@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Загрузчик медиа</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101317;color:#edf1f6;font:16px system-ui,sans-serif}main{max-width:810px;min-height:100vh;margin:0 auto;padding:calc(9vh + 24px) 24px 16px;display:flex;flex-direction:column}h1{font-size:clamp(32px,7vw,54px);letter-spacing:-.055em;margin:0 0 24px}nav{display:flex;gap:6px;overflow:auto;margin-bottom:14px}button,input{font:inherit;color:inherit}button{cursor:pointer;background:#282f39;border:0;border-radius:10px;padding:10px 15px;white-space:nowrap}button:hover{background:#363f4c}button[aria-selected=true],.primary{background:#b8f485;color:#182315;font-weight:650}button:disabled{opacity:.5;cursor:default}section{border:1px solid #343a42;background:#191e25;border-radius:19px;padding:24px}label{display:block;margin-bottom:9px;color:#b8c1ce}.line,.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.field{display:flex;flex:1;min-width:190px;border:1px solid #455061;border-radius:10px;background:#11151b}.field:focus-within{outline:2px solid #b8f485}input{width:100%;min-width:0;background:none;border:0;padding:12px;outline:none}.field button{background:none;padding:6px 14px;font-size:23px}.actions{margin-top:14px}.preview{margin-top:20px;display:flex;gap:14px;align-items:center}.preview img{width:164px;height:100px;object-fit:contain;background:#0e1116;border-radius:9px}#photos{display:flex;gap:7px;overflow:auto;margin-top:12px}#photos img{width:56px;height:56px;object-fit:cover;border-radius:7px}small,#status{color:#b8c1ce}#status{overflow-wrap:anywhere;white-space:pre-line}#status:empty,[hidden]{display:none!important}
+footer{margin-top:auto;padding-top:24px;text-align:center}footer .author{color:#76808d;font-size:11px}
+details{margin:0 0 14px;color:#bac4d0}summary{cursor:pointer;padding:8px 0}.settings{display:grid;gap:8px;padding:10px 0}.settings label{margin:0}.settings input{background:#191e25;border:1px solid #455061;border-radius:10px}.settings input:focus-visible{outline:2px solid #b8f485}
+.video-settings{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:16px}.video-settings label{margin:0;display:grid;gap:5px;font-size:13px}.video-settings select{font:inherit;color:#edf1f6;background:#282f39;border:1px solid #455061;border-radius:9px;padding:8px 12px}
+</style>
+<main><h1>Загрузчик медиа</h1><nav aria-label="Сервисы" role="tablist"></nav>
+<details id="connection"><summary>Подключение к серверу</summary><div class="settings">
+<label for="api-origin">HTTPS-адрес сервера загрузки</label><input id="api-origin" type="url" placeholder="https://media.example.com" autocomplete="url">
+<label for="api-key">Ключ доступа к серверу</label><input id="api-key" type="password" autocomplete="off">
+</div></details>
+<section><label for="url">Ссылка на публикацию или видео</label><div class="line"><div class="field"><input id="url" type="url" autocomplete="off" spellcheck="false"><button id="clear" aria-label="Очистить ссылку" title="Очистить ссылку">×</button></div><button id="paste">Вставить</button></div>
+<div class="video-settings" id="video-settings">
+<label>Формат видео<select id="video-format">
+<option value="mp4">MP4</option><option value="webm">WebM</option><option value="mkv">MKV</option><option value="source">Исходный</option>
+</select></label>
+<label>Разрешение<select id="video-resolution">
+<option value="0">Максимальное</option><option value="2160">До 2160p</option><option value="1440">До 1440p</option><option value="1080">До 1080p</option><option value="720">До 720p</option><option value="480">До 480p</option><option value="360">До 360p</option>
+</select></label></div>
+<div class="actions"><button id="preview">Предпросмотр</button><button class="primary" id="video">Скачать видео</button><button id="photo">Скачать фото</button></div>
+<div class="preview" id="card" hidden><img id="cover" alt="Обложка" hidden><div><strong id="title"></strong><br><small id="detail"></small></div></div><div id="photos" hidden></div><p id="status" role="status"></p></section><footer><span class="author">автор: @suren.arakelyan_</span></footer></main>
+<script>
+const get=id=>document.getElementById(id), input=get('url'), status=get('status'), card=get('card');
+const tabs={rutube:['Rutube','https://rutube.ru/video/…'],youtube:['YouTube','https://youtu.be/…'],instagram:['Instagram','https://www.instagram.com/reel/…'],threads:['Threads','https://www.threads.com/@имя/post/…'],yandex:['Яндекс Музыка','https://music.yandex.ru/album/…/track/…']};
+const drafts={}; let selected='rutube', revision=0;
+function reset(){revision++; card.hidden=true;get('photos').hidden=true; status.textContent='';}
+function select(key){drafts[selected]=input.value; selected=key; input.value=drafts[key]||''; input.placeholder=tabs[key][1]; reset(); document.querySelectorAll('[role=tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.key===key)); get('video').textContent=key==='yandex'?'Скачать трек':'Скачать видео';get('photo').hidden=key==='yandex';get('video-settings').hidden=key==='yandex'; get('photo').textContent=['rutube','youtube'].includes(key)?'Скачать обложку':'Скачать все фото';}
+for(const [key,[name]] of Object.entries(tabs)){const b=document.createElement('button'); b.textContent=name;b.dataset.key=key;b.setAttribute('role','tab');b.onclick=()=>select(key);document.querySelector('nav').append(b)}
+input.oninput=reset; get('clear').onclick=()=>{input.value='';reset();input.focus()};
+function pasteLink(text){
+ if(!text){status.textContent='В буфере обмена нет текста.';input.focus();return}
+ input.value=text.trim();reset();input.focus();
+}
+get('paste').onclick=async()=>{
+ const nativeClipboard=window.webkit?.messageHandlers?.pasteLink;
+ if(nativeClipboard){nativeClipboard.postMessage(null);return}
+ try{pasteLink(await navigator.clipboard.readText())}
+ catch{input.focus();status.textContent='Вставьте ссылку через ⌘V или меню по правому щелчку.'}
+};
+async function action(kind){
+ const url=input.value.trim(); if(!url){status.textContent='Сначала вставьте ссылку.';input.focus();return}
+ const payload={url,site:selected,kind};
+ if(kind==='video'){
+  payload.videoFormat=get('video-format').value;
+  payload.resolution=Number(get('video-resolution').value);
+ }
+ const ticket=++revision; status.textContent=kind==='preview'?'Загружаю предпросмотр…':'Скачиваю файл…';
+ try{
+ const address=get('api-origin').value.trim(), key=get('api-key').value.trim();
+ if(!address || !key){get('connection').open=true;throw Error('Укажите HTTPS-адрес сервера и ключ доступа.')}
+ const endpoint=new URL(address);
+ if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password||endpoint.pathname!=='/'||endpoint.search||endpoint.hash)
+    throw Error('Укажите только HTTPS-адрес, например https://media.example.com.');
+ const response=await fetch(new URL('/api',endpoint),{method:'POST',credentials:'omit',redirect:'error',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify(payload)});
+ if(ticket!==revision)return;
+ if(!response.ok){const error=await response.json();throw Error(error.error)}
+ if(kind==='preview'){
+    const data=await response.json();
+    if(ticket!==revision)return;
+    get('title').textContent=data.title;get('detail').textContent=data.detail||'';
+    const cover=get('cover');cover.hidden=!data.cover;
+    if(data.cover)cover.src=data.cover;else cover.removeAttribute('src');
+    card.hidden=false;
+    const photos=data.photos||[], gallery=get('photos');
+    gallery.replaceChildren();gallery.hidden=photos.length<2;
+    if(photos.length>1){
+     get('detail').textContent='Фото: '+photos.length;
+     photos.forEach((url,index)=>{const img=document.createElement('img');img.src=url;img.alt='Фото '+(index+1);img.loading='lazy';gallery.append(img)});
+    }
+    status.textContent='';
+ }else{
+    const blob=await response.blob();
+    if(ticket!==revision)return;
+    const disposition=response.headers.get('Content-Disposition')||'';
+    const name=disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    const link=document.createElement('a');
+    link.href=URL.createObjectURL(blob);
+    link.download=name?decodeURIComponent(name[1]):'media';
+    document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(link.href),30_000);
+    const failures=Number(response.headers.get('X-Media-Failed')||0);
+    status.textContent='Файл передан браузеру.'+(failures?' Часть фото недоступна.':'');
+ }
+ }catch(error){if(ticket===revision)status.textContent=error.message}
+}
+for(const kind of ['preview','video','photo'])get(kind).onclick=()=>action(kind==='video'&&selected==='yandex'?'audio':kind);
+get('cover').onerror=()=>{get('cover').hidden=true};
+input.onkeydown=event=>{if(event.key==='Enter')action('preview');if(event.key==='Escape')get('clear').click()};
+get('api-origin').value=localStorage.getItem('media-api-origin')||'';
+get('api-origin').onchange=()=>{localStorage.setItem('media-api-origin',get('api-origin').value.trim());reset()};
+get('api-key').oninput=reset;
+select(selected);
+</script></html>
